@@ -1,2 +1,5 @@
 # Virtual env
 SplitterEnv/
+
+# vim files
+*.swp
