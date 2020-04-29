@@ -32,12 +32,16 @@ def split_images(args):
                     len(range(0, height, size-stride))* \
                     len(range(0, width, size-stride)))
 
+            # create basic xml structure
+            crop_ann = ET.Element('annotation')
+            obj = ET.SubElement(crop_ann, 'object')
+            bndbox = ET.SubElement(obj, 'bndbox')
+
             count = 0
             for y in range(0, height, size-stride):
                 for x in range(0, width, size-stride):
                     crop_img = img[y:y+size, x:x+size]
-                    crop_ann = []
-
+                    
                     output_image = os.path.join(output_dir, "images/" \
                             '{}_Split{:03d}{}'.format( \
                             os.path.splitext(image.name)[0], count, filext))
@@ -50,7 +54,15 @@ def split_images(args):
                         if box[0] > x and box[1] > y and \
                                 box[2] < (x+size) and box[3] < (y+size):
                             crop_ann.append([box[0]-x, box[1]-y, \
-                                    box[2]-(x+size), box[3]-(y+size)
+                                    box[2]-(x+size), box[3]-(y+size))
+
+                            obj.set('name', '')
+                            obj.set('truncated', '')
+                            obj.set('difficult', '')
+                            bndbox.set('xmin', )
+                            bndbox.set('ymin', )
+                            bndbox.set('xmax', )
+                            bndbox.set('ymax', )
 
                     xmlfile = open(output_annotation, 'w')
                     xmlfile.write( ET.tostring(crop_ann) )  # write xml
@@ -63,7 +75,6 @@ def split_images(args):
 def read_xml(xml_file: str):
     tree = Et.parse(xml_file)
     root = tree.getroot()
-    filename = root.find('filename').text
 
     bndboxes = []
     for boxes in root.iter('object'):
