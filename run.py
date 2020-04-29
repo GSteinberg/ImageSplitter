@@ -21,6 +21,13 @@ def split_images(args):
             img = cv2.imread(image.path)
             height, width = img.shape[:2]
             
+            # bounding boxes for items - [xmin, ymin, xmax, ymax]
+            bndboxes = read_xml(os.path.join( \
+                    input_annotations, \
+                    os.path.splitext(image.name)[0] + ".xml"))
+            bndboxes.sort(key=lambda i: (i[0], i[1]))
+            continue
+
             bar = IncrementalBar("Processing " + image.name, max= \
                     len(range(0, height, size-stride))* \
                     len(range(0, width, size-stride)))
@@ -29,12 +36,25 @@ def split_images(args):
             for y in range(0, height, size-stride):
                 for x in range(0, width, size-stride):
                     crop_img = img[y:y+size, x:x+size]
+                    crop_ann = []
 
                     output_image = os.path.join(output_dir, "images/" \
                             '{}_Split{:03d}{}'.format( \
                             os.path.splitext(image.name)[0], count, filext))
+                    output_annotation = os.path.join(output_dir, "images/" \
+                            '{}_Split{:03d}.xml'.format( \
+                            os.path.splitext(image.name)[0], count))
 
-                    cv2.imwrite(output_image, crop_img)
+                    # bndbox is within images range
+                    for box in bndboxes:
+                        if box[0] > x and box[1] > y and \
+                                box[2] < (x+size) and box[3] < (y+size):
+                            crop_ann.append([box[0]-x, box[1]-y, \
+                                    box[2]-(x+size), box[3]-(y+size)
+
+                    xmlfile = open(output_annotation, 'w')
+                    xmlfile.write( ET.tostring(crop_ann) )  # write xml
+                    cv2.imwrite(output_image, crop_img)     # write img
                     count+=1
                     bar.next()
 
@@ -48,10 +68,10 @@ def read_xml(xml_file: str):
     bndboxes = []
     for boxes in root.iter('object'):
         for box in boxes.findall("bndbox"):
-            ymin = int(box.find("ymin").text)
             xmin = int(box.find("xmin").text)
-            ymax = int(box.find("ymax").text)
+            ymin = int(box.find("ymin").text)
             xmax = int(box.find("xmax").text)
+            ymax = int(box.find("ymax").text)
 
         bndboxes.append([xmin, ymin, xmax, ymax])
 
