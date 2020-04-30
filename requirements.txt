@@ -1,0 +1,3 @@
+## Current requirements without version restrictions ##
+opencv-python
+progress
