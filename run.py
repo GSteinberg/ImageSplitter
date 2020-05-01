@@ -5,7 +5,7 @@ import cv2
 from pprint import pprint
 from progress.bar import IncrementalBar
 
-## Input and output directories must have images/ and annotations/ subdirs ###
+### Input and output directories must both have images/ and annotations/ subdirs ###
 
 class BoundingBox:
     def __init__(self, name, trunc, diff, xmin, ymin, xmax, ymax):
@@ -17,43 +17,38 @@ class BoundingBox:
         self.xmax = xmax
         self.ymax = ymax
 
+    # for printing
     def __str__(self):
         return vars(self)
 
 def split_images(args):
-    input_dir = args[0]     # images and annotations that will be split
-    output_dir = args[1]    # saved split images and annotations
-    crop_size = int(args[2])      # size of the square output pictures
+    input_dir = args[0]     # where to take input imgs and anns to split
+    output_dir = args[1]    # where to save output imgs and annotations
+    crop_size = int(args[2])      # size of square output imgs (xcept leftover)
     stride = int(args[3])    # amount of overlap
-    filext = args[4]    # files to look for
+    filext = args[4]    # type of files to look for
 
     input_images = os.path.join(input_dir, "images/")
     input_annotations = os.path.join(input_dir, "annotations/")
 
     for image in os.scandir(input_images):
-        # every image
+        # every input image
         if image.name.endswith(filext):
             img = cv2.imread(image.path)
+            # input image original size
             img_height, img_width = img.shape[:2]
 
+            # for output viz
             bar = IncrementalBar("Processing " + image.name, max= \
                     len(range(0, img_height, crop_size-stride))* \
                     len(range(0, img_width, crop_size-stride)))
            
-            # Get list of BoundingBox objects for image
+            # get list of BoundingBox objects for image
             bndboxes = read_xml(os.path.join( \
                     input_annotations, \
                     os.path.splitext(image.name)[0] + ".xml"))
-            # bndboxes.sort(key=lambda i: (i[0], i[1]))
 
-            # Create basic xml structure for writing
-            crop_ann = ET.Element('annotation')
-            filename = ET.SubElement(crop_ann, 'filename')
-            size = ET.SubElement(crop_ann, 'size')
-            width = ET.SubElement(size, 'width')
-            height = ET.SubElement(size, 'height')
-            depth = ET.SubElement(size, 'depth')
-
+            # count to be included in file name
             count = 0
             # split image and xml
             for y in range(0, img_height, crop_size-stride):
@@ -61,6 +56,14 @@ def split_images(args):
                     # crop image
                     crop_img = img[y:y+crop_size, x:x+crop_size]
 
+                    # Create basic xml structure for writing
+                    crop_ann = ET.Element('annotation')
+                    filename = ET.SubElement(crop_ann, 'filename')
+                    size = ET.SubElement(crop_ann, 'size')
+                    width = ET.SubElement(size, 'width')
+                    height = ET.SubElement(size, 'height')
+                    depth = ET.SubElement(size, 'depth')
+                    
                     # write size data to xml
                     width.text = str(img_width)
                     height.text = str(img_height)
@@ -78,7 +81,8 @@ def split_images(args):
                     # bndbox is fully contained in image
                     for box in bndboxes:
                         if box.xmin > x and box.ymin > y and \
-                                box.xmax < (x+crop_size) and box.ymax< (y+crop_size):
+                                box.xmax < x+crop_size and \
+                                box.ymax < y+crop_size:
                             
                             # create object xml tree
                             obj = ET.SubElement(crop_ann, 'object')
@@ -89,7 +93,7 @@ def split_images(args):
                             name.text = box.name
                             truncated.text = str(box.truncated)
                             difficult.text = str(box.difficult)
-                            
+
                             # create bndbox xml tree
                             bndbox = ET.SubElement(obj, 'bndbox')
                             xmin = ET.SubElement(bndbox, 'xmin')
@@ -99,15 +103,13 @@ def split_images(args):
                             # fill bndbox tree
                             xmin.text = str(box.xmin-x)
                             ymin.text = str(box.ymin-y)
-                            xmax.text = str(box.xmax-(x+crop_size))
-                            ymax.text = str(box.ymax-(y+crop_size))
-
-                            # add obj and bndbox to root tree
-                            crop_ann.append(obj)
-                            crop_ann.append(bndbox)
+                            xmax.text = str(box.xmax-x)
+                            ymax.text = str(box.ymax-y)
 
                     # convert xml tree to string
                     root = ET.tostring(crop_ann, encoding='unicode')
+                    crop_ann.clear()
+                    
                     xmlfile = open(output_annotation, 'w')
                     xmlfile.write(root)                     # write xml
                     cv2.imwrite(output_image, crop_img)     # write img
@@ -115,7 +117,8 @@ def split_images(args):
                     bar.next()
 
             bar.finish()
-            
+           
+# Parse XMLs to populate BoundingBox object members
 def read_xml(xml_file: str):
     tree = ET.parse(xml_file)
     root = tree.getroot()
@@ -144,9 +147,3 @@ def main():
 
 main()
 
-"""
-print('img: {}, {}, {}, {}' \
-        .format(x, y, x+size, y+size))
-print('box: {}, {}, {}, {}' \
-        .format(box.xmin, box.ymin, box.xmax, box.ymax))
-        """
