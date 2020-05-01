@@ -47,8 +47,7 @@ def split_images(args):
 
             # Create basic xml structure for writing
             crop_ann = ET.Element('annotation')
-            obj = ET.SubElement(crop_ann, 'object')
-            bndbox = ET.SubElement(obj, 'bndbox')
+            filename = ET.SubElement(crop_ann, 'filename')
 
             count = 0
             # Split image and xml
@@ -56,31 +55,49 @@ def split_images(args):
                 for x in range(0, width, size-stride):
                     crop_img = img[y:y+size, x:x+size]
                     
-                    output_image = os.path.join(output_dir, "images/" \
-                            '{}_Split{:03d}{}'.format( \
-                            os.path.splitext(image.name)[0], count, filext))
+                    entry_name = '{}_Split{:03d}'.format( \
+                            os.path.splitext(image.name)[0], count)
+                    output_image = os.path.join(output_dir, "images/", \
+                            '{}{}'.format(entry_name, filext))
                     output_annotation = os.path.join(output_dir, "annotations/" \
-                            '{}_Split{:03d}.xml'.format( \
-                            os.path.splitext(image.name)[0], count))
+                            '{}.xml'.format(entry_name))
+                    filename.text = entry_name + filext
 
                     # bndbox is fully contained in image
                     for box in bndboxes:
                         if box.xmin > x and box.ymin > y and \
                                 box.xmax < (x+size) and box.ymax < (y+size):
-                            obj.set('name', box.name)
-                            obj.set('truncated', box.truncated)
-                            obj.set('difficult', box.difficult)
-                            bndbox.set('xmin', box.xmin-x)
-                            bndbox.set('ymin', box.ymin-y)
-                            bndbox.set('xmax', box.xmax-(x+size))
-                            bndbox.set('ymax', box.ymax-(y+size))
+                            
+                            # create object xml tree
+                            obj = ET.SubElement(crop_ann, 'object')
+                            name = ET.SubElement(obj, 'name')
+                            truncated = ET.SubElement(obj, 'truncated')
+                            difficult = ET.SubElement(obj, 'difficult')
+                            # fill obj tree
+                            name.text = box.name
+                            truncated.text = str(box.truncated)
+                            difficult.text = str(box.difficult)
+                            
+                            # create bndbox xml tree
+                            bndbox = ET.SubElement(obj, 'bndbox')
+                            xmin = ET.SubElement(bndbox, 'xmin')
+                            ymin = ET.SubElement(bndbox, 'ymin')
+                            xmax = ET.SubElement(bndbox, 'xmax')
+                            ymax = ET.SubElement(bndbox, 'ymax')
+                            # fill bndbox tree
+                            xmin.text = str(box.xmin-x)
+                            ymin.text = str(box.ymin-y)
+                            xmax.text = str(box.xmax-(x+size))
+                            ymax.text = str(box.ymax-(y+size))
 
+                            # add obj and bndbox to root tree
                             crop_ann.append(obj)
                             crop_ann.append(bndbox)
-                            print("here")
 
+                    # convert xml tree to string
+                    root = ET.tostring(crop_ann, encoding='unicode')
                     xmlfile = open(output_annotation, 'w')
-                    xmlfile.write( ET.tostring(crop_ann) )  # write xml
+                    xmlfile.write(root)                     # write xml
                     cv2.imwrite(output_image, crop_img)     # write img
                     count+=1
                     bar.next()
@@ -114,3 +131,10 @@ def main():
     split_images(sys.argv[1:])
 
 main()
+
+"""
+print('img: {}, {}, {}, {}' \
+        .format(x, y, x+size, y+size))
+print('box: {}, {}, {}, {}' \
+        .format(box.xmin, box.ymin, box.xmax, box.ymax))
+        """
