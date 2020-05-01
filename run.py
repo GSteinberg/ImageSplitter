@@ -23,7 +23,7 @@ class BoundingBox:
 def split_images(args):
     input_dir = args[0]     # images and annotations that will be split
     output_dir = args[1]    # saved split images and annotations
-    size = int(args[2])      # size of the square output pictures
+    crop_size = int(args[2])      # size of the square output pictures
     stride = int(args[3])    # amount of overlap
     filext = args[4]    # files to look for
 
@@ -31,13 +31,14 @@ def split_images(args):
     input_annotations = os.path.join(input_dir, "annotations/")
 
     for image in os.scandir(input_images):
+        # every image
         if image.name.endswith(filext):
             img = cv2.imread(image.path)
-            height, width = img.shape[:2]
+            img_height, img_width = img.shape[:2]
 
             bar = IncrementalBar("Processing " + image.name, max= \
-                    len(range(0, height, size-stride))* \
-                    len(range(0, width, size-stride)))
+                    len(range(0, img_height, crop_size-stride))* \
+                    len(range(0, img_width, crop_size-stride)))
            
             # Get list of BoundingBox objects for image
             bndboxes = read_xml(os.path.join( \
@@ -48,13 +49,24 @@ def split_images(args):
             # Create basic xml structure for writing
             crop_ann = ET.Element('annotation')
             filename = ET.SubElement(crop_ann, 'filename')
+            size = ET.SubElement(crop_ann, 'size')
+            width = ET.SubElement(size, 'width')
+            height = ET.SubElement(size, 'height')
+            depth = ET.SubElement(size, 'depth')
 
             count = 0
-            # Split image and xml
-            for y in range(0, height, size-stride):
-                for x in range(0, width, size-stride):
-                    crop_img = img[y:y+size, x:x+size]
-                    
+            # split image and xml
+            for y in range(0, img_height, crop_size-stride):
+                for x in range(0, img_width, crop_size-stride):
+                    # crop image
+                    crop_img = img[y:y+crop_size, x:x+crop_size]
+
+                    # write size data to xml
+                    width.text = str(img_width)
+                    height.text = str(img_height)
+                    depth.text = "3"
+
+                    # names for each split image and xml pair
                     entry_name = '{}_Split{:03d}'.format( \
                             os.path.splitext(image.name)[0], count)
                     output_image = os.path.join(output_dir, "images/", \
@@ -66,7 +78,7 @@ def split_images(args):
                     # bndbox is fully contained in image
                     for box in bndboxes:
                         if box.xmin > x and box.ymin > y and \
-                                box.xmax < (x+size) and box.ymax < (y+size):
+                                box.xmax < (x+crop_size) and box.ymax< (y+crop_size):
                             
                             # create object xml tree
                             obj = ET.SubElement(crop_ann, 'object')
@@ -87,8 +99,8 @@ def split_images(args):
                             # fill bndbox tree
                             xmin.text = str(box.xmin-x)
                             ymin.text = str(box.ymin-y)
-                            xmax.text = str(box.xmax-(x+size))
-                            ymax.text = str(box.ymax-(y+size))
+                            xmax.text = str(box.xmax-(x+crop_size))
+                            ymax.text = str(box.ymax-(y+crop_size))
 
                             # add obj and bndbox to root tree
                             crop_ann.append(obj)
