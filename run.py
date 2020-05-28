@@ -49,10 +49,13 @@ def split_images(args):
                     os.path.splitext(image.name)[0] + ".xml"))
 
             # count to be included in file name
-            count = 0
+            row_count = -1
             # split image and xml
             for y in range(0, img_height, crop_size-stride):
+                row_count+=1
+                col_count = -1
                 for x in range(0, img_width, crop_size-stride):
+                    col_count+=1
                     # crop image
                     crop_img = img[y:y+crop_size, x:x+crop_size]
 
@@ -64,18 +67,22 @@ def split_images(args):
                     height = ET.SubElement(size, 'height')
                     depth = ET.SubElement(size, 'depth')
                     
+                    # size of cropped img
+                    crop_img_height, crop_img_width = crop_img.shape[:2]
                     # write size data to xml
-                    width.text = str(img_width)
-                    height.text = str(img_height)
+                    height.text = str(crop_img_height)
+                    width.text = str(crop_img_width)
                     depth.text = "3"
 
                     # names for each split image and xml pair
-                    entry_name = '{}_Split{:03d}'.format( \
-                            os.path.splitext(image.name)[0], count)
+                    entry_name = '{}_Split{:02d}{:02d}'.format( \
+                            os.path.splitext(image.name)[0], \
+                            row_count, col_count)
                     output_image = os.path.join(output_dir, "images/", \
                             '{}{}'.format(entry_name, filext))
                     output_annotation = os.path.join(output_dir, "annotations/" \
                             '{}.xml'.format(entry_name))
+                    # write to xml the image it corresponds to
                     filename.text = entry_name + filext
 
                     # bndbox is fully contained in image
@@ -113,7 +120,7 @@ def split_images(args):
                     xmlfile = open(output_annotation, 'w')
                     xmlfile.write(root)                     # write xml
                     cv2.imwrite(output_image, crop_img)     # write img
-                    count+=1
+                    # progress bar
                     bar.next()
 
             bar.finish()
