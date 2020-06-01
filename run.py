@@ -21,12 +21,29 @@ class BoundingBox:
     def __str__(self):
         return vars(self)
 
+def to_bool(s):
+    return True if s == "True" else False
+
+def bndbox_in_img(include_trunc, conditions):
+    # To include truncated objects, include all fully and partially contained
+    if include_trunc:
+        if all(conditions):
+            return True
+        if conditions.count(False) == 1:
+            return "trunc"
+    # include only fully contained
+    else:
+        if all(conditions):
+            return True
+    return False    
+
 def split_images(args):
     input_dir = args[0]     # where to take input imgs and anns to split
     output_dir = args[1]    # where to save output imgs and annotations
     crop_size = int(args[2])      # size of square output imgs (xcept leftover)
     stride = int(args[3])    # amount of overlap
     filext = args[4]    # type of files to look for
+    include_trunc = to_bool(args[5])    # include truncated objects or not
 
     input_images = os.path.join(input_dir, "images/")
     input_annotations = os.path.join(input_dir, "annotations/")
@@ -85,12 +102,18 @@ def split_images(args):
                     # write to xml the image it corresponds to
                     filename.text = entry_name + filext
 
-                    # bndbox is fully contained in image
+                    # Bounding box fully contained in image or truncated
+                    # Depending on arg
                     for box in bndboxes:
-                        if box.xmin > x and box.ymin > y and \
-                                box.xmax < x+crop_size and \
-                                box.ymax < y+crop_size:
-                            
+                        conditions = [x < box.xmin < x+crop_size, \
+                                      y < box.ymin < y+crop_size, \
+                                      x < box.xmax < x+crop_size, \
+                                      y < box.ymax < y+crop_size]
+                        true_or_trunc = bndbox_in_img(include_trunc, conditions)
+                        if true_or_trunc in [True,"trunc"]:
+                            # set truncated objects to difficult
+                            if true_or_trunc == "trunc":
+                                box.difficult = 1
                             # create object xml tree
                             obj = ET.SubElement(crop_ann, 'object')
                             name = ET.SubElement(obj, 'name')
@@ -108,10 +131,10 @@ def split_images(args):
                             xmax = ET.SubElement(bndbox, 'xmax')
                             ymax = ET.SubElement(bndbox, 'ymax')
                             # fill bndbox tree
-                            xmin.text = str(box.xmin-x)
-                            ymin.text = str(box.ymin-y)
-                            xmax.text = str(box.xmax-x)
-                            ymax.text = str(box.ymax-y)
+                            xmin.text = str( max(0, box.xmin-x) )
+                            ymin.text = str( max(0, box.ymin-y) )
+                            xmax.text = str( min(crop_img_width, box.xmax-x) )
+                            ymax.text = str( min(crop_img_height, box.ymax-y) )
 
                     # convert xml tree to string
                     root = ET.tostring(crop_ann, encoding='unicode')
