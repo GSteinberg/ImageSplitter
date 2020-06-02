@@ -2,10 +2,41 @@ import xml.etree.ElementTree as ET
 import os
 import sys
 import cv2
+import argparse
 from pprint import pprint
 from progress.bar import IncrementalBar
 
 ### Input and output directories must both have images/ and annotations/ subdirs ###
+
+def parse_args():
+    """
+    Parse input arguments
+    """
+    parser = argparse.ArgumentParser(description='Split an image')
+    parser.add_argument('--size', dest='crop_size',
+                        help='size of cropped sections',
+                        default=700, type=int)
+    parser.add_argument('--stride', dest='stride',
+                        help='overlap for cropped regions',
+                        default=70, type=int)
+    parser.add_argument('--img_type', dest='filext',
+                        help='file type of image (e.g. .tif, .png)',
+                        default=".tif", type=str)
+    parser.add_argument('--truncated', dest='include_trunc',
+                        help='whether to include truncated objects',
+                        default=True, type=bool)
+    parser.add_argument('--adjust', dest='adj_crop_size',
+                        help='whether to adjust size to eliminate different \
+                        sized images', default=False, type=bool)
+    parser.add_argument('--input_dir', dest='input_dir',
+                        help='directory to take input imgs and anns to split',
+                        default='../OrthoData/Mar16Grass/', type=str)
+    parser.add_argument('--output_dir', dest='output_dir',
+                        help='directory to save cropped imgs and anns',
+                        default='../SplitData/Mar16Grass/naive/', type=str)
+
+    args = parser.parse_args()
+    return args
 
 class BoundingBox:
     def __init__(self, name, trunc, diff, xmin, ymin, xmax, ymax):
@@ -21,9 +52,6 @@ class BoundingBox:
     def __str__(self):
         return vars(self)
 
-def to_bool(s):
-    return True if s == "True" else False
-
 def bndbox_in_img(include_trunc, conditions):
     # To include truncated objects, include all fully and partially contained
     if include_trunc:
@@ -37,20 +65,43 @@ def bndbox_in_img(include_trunc, conditions):
             return True
     return False    
 
-def split_images(args):
-    input_dir = args[0]     # where to take input imgs and anns to split
-    output_dir = args[1]    # where to save output imgs and annotations
-    crop_size = int(args[2])      # size of square output imgs (xcept leftover)
-    stride = int(args[3])    # amount of overlap
-    filext = args[4]    # type of files to look for
-    include_trunc = to_bool(args[5])    # include truncated objects or not
+# Parse XMLs to populate BoundingBox object members
+def read_xml(xml_file: str):
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
 
-    input_images = os.path.join(input_dir, "images/")
-    input_annotations = os.path.join(input_dir, "annotations/")
+    bndboxes = []
+    for boxes in root.iter('object'):
+        name = boxes.find("name").text
+        truncated = int(boxes.find("truncated").text)
+        difficult = int(boxes.find("difficult").text)
+        for box in boxes.findall("bndbox"):
+            xmin = int(box.find("xmin").text)
+            ymin = int(box.find("ymin").text)
+            xmax = int(box.find("xmax").text)
+            ymax = int(box.find("ymax").text)
+        
+        bb = BoundingBox(name, truncated, difficult, xmin, ymin, xmax, ymax)
+        bndboxes.append(bb)
+
+    return bndboxes
+
+if __name__ == '__main__':    
+
+    args = parse_args()
+    
+    print("Called with args:")
+    print(args)
+
+    crop_size = args.crop_size
+    stride = args.stride
+
+    input_images = os.path.join(args.input_dir, "images/")
+    input_annotations = os.path.join(args.input_dir, "annotations/")
 
     for image in os.scandir(input_images):
         # every input image
-        if image.name.endswith(filext):
+        if image.name.endswith(args.filext):
             img = cv2.imread(image.path)
             # input image original size
             img_height, img_width = img.shape[:2]
@@ -95,12 +146,12 @@ def split_images(args):
                     entry_name = '{}_Split{:02d}{:02d}'.format( \
                             os.path.splitext(image.name)[0], \
                             row_count, col_count)
-                    output_image = os.path.join(output_dir, "images/", \
-                            '{}{}'.format(entry_name, filext))
-                    output_annotation = os.path.join(output_dir, "annotations/" \
+                    output_image = os.path.join(args.output_dir, "images/", \
+                            '{}{}'.format(entry_name, args.filext))
+                    output_annotation = os.path.join(args.output_dir, "annotations/" \
                             '{}.xml'.format(entry_name))
                     # write to xml the image it corresponds to
-                    filename.text = entry_name + filext
+                    filename.text = entry_name + args.filext
 
                     # Bounding box fully contained in image or truncated
                     # Depending on arg
@@ -109,7 +160,7 @@ def split_images(args):
                                       y < box.ymin < y+crop_size, \
                                       x < box.xmax < x+crop_size, \
                                       y < box.ymax < y+crop_size]
-                        true_or_trunc = bndbox_in_img(include_trunc, conditions)
+                        true_or_trunc = bndbox_in_img(args.include_trunc, conditions)
                         if true_or_trunc in [True,"trunc"]:
                             # set truncated objects to difficult
                             if true_or_trunc == "trunc":
@@ -148,32 +199,3 @@ def split_images(args):
 
             bar.finish()
            
-# Parse XMLs to populate BoundingBox object members
-def read_xml(xml_file: str):
-    tree = ET.parse(xml_file)
-    root = tree.getroot()
-
-    bndboxes = []
-    for boxes in root.iter('object'):
-        name = boxes.find("name").text
-        truncated = int(boxes.find("truncated").text)
-        difficult = int(boxes.find("difficult").text)
-        for box in boxes.findall("bndbox"):
-            xmin = int(box.find("xmin").text)
-            ymin = int(box.find("ymin").text)
-            xmax = int(box.find("xmax").text)
-            ymax = int(box.find("ymax").text)
-        
-        bb = BoundingBox(name, truncated, difficult, xmin, ymin, xmax, ymax)
-        bndboxes.append(bb)
-
-    return bndboxes
-
-def main():
-    if len(sys.argv) < 5:
-        print("Invalid number of arguments")
-        exit(1)
-    split_images(sys.argv[1:])
-
-main()
-
