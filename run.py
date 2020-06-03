@@ -14,11 +14,11 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description='Split an image')
     parser.add_argument('--size', dest='crop_size',
-                        help='size of cropped sections',
+                        help='size of square cropped sections',
                         default=700, type=int)
-    parser.add_argument('--stride', dest='stride',
-                        help='overlap for cropped regions',
-                        default=70, type=int)
+    parser.add_argument('--stride', dest='percent_stride',
+                        help='percent overlap for cropped regions',
+                        default=10, type=int)
     parser.add_argument('--img_type', dest='filext',
                         help='file type of image (e.g. .tif, .png)',
                         default=".tif", type=str)
@@ -26,8 +26,8 @@ def parse_args():
                         help='whether to include truncated objects',
                         default=True, type=bool)
     parser.add_argument('--adjust', dest='adj_crop_size',
-                        help='whether to adjust size to eliminate different \
-                        sized images', default=False, type=bool)
+                        help='whether to adjust window to normalize image size',
+                        default=False, type=bool)
     parser.add_argument('--input_dir', dest='input_dir',
                         help='directory to take input imgs and anns to split',
                         default='../OrthoData/Mar16Grass/', type=str)
@@ -93,8 +93,8 @@ if __name__ == '__main__':
     print("Called with args:")
     print(args)
 
-    crop_size = args.crop_size
-    stride = args.stride
+    crop_height = crop_width = args.crop_size
+    stride_width = stride_height = args.crop_size // args.percent_stride
 
     input_images = os.path.join(args.input_dir, "images/")
     input_annotations = os.path.join(args.input_dir, "annotations/")
@@ -106,10 +106,20 @@ if __name__ == '__main__':
             # input image original size
             img_height, img_width = img.shape[:2]
 
+            # adjust crop size if desired
+            if args.adj_crop_size:
+                # adjust crop_width
+                if img_width % (crop_width-stride) < ((crop_width-stride) / 2)):
+                    # round down to increase crop size
+                    num_crops_per_row = img_width // (crop_width-stride)
+                    crop_width = (img_width // num_crops_per_row) + stride
+                    stride = crop_width // args.percent_stride
+                    
+
             # for output viz
             bar = IncrementalBar("Processing " + image.name, max= \
-                    len(range(0, img_height, crop_size-stride))* \
-                    len(range(0, img_width, crop_size-stride)))
+                    len(range(0, img_height, crop_height-stride))* \
+                    len(range(0, img_width, crop_width-stride)))
            
             # get list of BoundingBox objects for image
             bndboxes = read_xml(os.path.join( \
@@ -119,13 +129,13 @@ if __name__ == '__main__':
             # count to be included in file name
             row_count = -1
             # split image and xml
-            for y in range(0, img_height, crop_size-stride):
+            for y in range(0, img_height, crop_height-stride):
                 row_count+=1
                 col_count = -1
-                for x in range(0, img_width, crop_size-stride):
+                for x in range(0, img_width, crop_width-stride):
                     col_count+=1
                     # crop image
-                    crop_img = img[y:y+crop_size, x:x+crop_size]
+                    crop_img = img[y:y+crop_height, x:x+crop_width]
 
                     # Create basic xml structure for writing
                     crop_ann = ET.Element('annotation')
@@ -156,10 +166,10 @@ if __name__ == '__main__':
                     # Bounding box fully contained in image or truncated
                     # Depending on arg
                     for box in bndboxes:
-                        conditions = [x < box.xmin < x+crop_size, \
-                                      y < box.ymin < y+crop_size, \
-                                      x < box.xmax < x+crop_size, \
-                                      y < box.ymax < y+crop_size]
+                        conditions = [x < box.xmin < x+crop_width, \
+                                      y < box.ymin < y+crop_height, \
+                                      x < box.xmax < x+crop_width, \
+                                      y < box.ymax < y+crop_height]
                         true_or_trunc = bndbox_in_img(args.include_trunc, conditions)
                         if true_or_trunc in [True,"trunc"]:
                             # set truncated objects to difficult
