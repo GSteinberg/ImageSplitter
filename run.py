@@ -124,6 +124,11 @@ if __name__ == '__main__':
                     # crop image
                     crop_img = img[y:y+crop_size, x:x+crop_size]
 
+                    # if photo is all black, skip
+                    b_and_w = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
+                    if cv2.countNonZero(b_and_w) == 0:
+                        continue
+
                     # Create basic xml structure for writing
                     crop_ann = ET.Element('annotation')
                     filename = ET.SubElement(crop_ann, 'filename')
