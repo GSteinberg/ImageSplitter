@@ -31,6 +31,9 @@ def parse_args():
     parser.add_argument('--output_dir', dest='output_dir',
                         help='directory to save cropped imgs and anns',
                         default='../SplitData/Mar16Grass/naive/', type=str)
+    parser.add_argument('--dummy', dest='dummy_obj',
+                        help='whether to put dummy object in background imgs',
+                        default=True, type=bool)
 
     args = parser.parse_args()
     return args
@@ -158,6 +161,7 @@ if __name__ == '__main__':
                     # Bounding box fully contained in image or truncated
                     # Depending on arg
                     for box in bndboxes:
+                        
                         conditions = [x < box.xmin < x+crop_size, \
                                       y < box.ymin < y+crop_size, \
                                       x < box.xmax < x+crop_size, \
@@ -167,28 +171,53 @@ if __name__ == '__main__':
                             # set truncated objects to difficult
                             if true_or_trunc == "trunc":
                                 box.difficult = 1
+                            
                             # create object xml tree
                             obj = ET.SubElement(crop_ann, 'object')
                             name = ET.SubElement(obj, 'name')
                             truncated = ET.SubElement(obj, 'truncated')
                             difficult = ET.SubElement(obj, 'difficult')
-                            # fill obj tree
-                            name.text = box.name
-                            truncated.text = str(box.truncated)
-                            difficult.text = str(box.difficult)
-
                             # create bndbox xml tree
                             bndbox = ET.SubElement(obj, 'bndbox')
                             xmin = ET.SubElement(bndbox, 'xmin')
                             ymin = ET.SubElement(bndbox, 'ymin')
                             xmax = ET.SubElement(bndbox, 'xmax')
                             ymax = ET.SubElement(bndbox, 'ymax')
+                        
+                            # fill obj tree
+                            name.text = box.name
+                            truncated.text = str(box.truncated)
+                            difficult.text = str(box.difficult)
                             # fill bndbox tree
                             xmin.text = str( max(0, box.xmin-x) )
                             ymin.text = str( max(0, box.ymin-y) )
                             xmax.text = str( min(crop_img_width, box.xmax-x) )
                             ymax.text = str( min(crop_img_height, box.ymax-y) )
 
+                    # include dummy obj in background imgs
+                    if args.dummy_obj and true_or_trunc == False:
+                        # create object xml tree
+                        obj = ET.SubElement(crop_ann, 'object')
+                        name = ET.SubElement(obj, 'name')
+                        truncated = ET.SubElement(obj, 'truncated')
+                        difficult = ET.SubElement(obj, 'difficult')
+                        # create bndbox xml tree
+                        bndbox = ET.SubElement(obj, 'bndbox')
+                        xmin = ET.SubElement(bndbox, 'xmin')
+                        ymin = ET.SubElement(bndbox, 'ymin')
+                        xmax = ET.SubElement(bndbox, 'xmax')
+                        ymax = ET.SubElement(bndbox, 'ymax')
+                    
+                        # fill obj tree
+                        name.text = "dummmy"
+                        truncated.text = "0"
+                        difficult.text = "0"
+                        # fill bndbox tree
+                        xmin.text = "0"
+                        ymin.text = "0" 
+                        xmax.text = "1"
+                        ymax.text = "1"
+                    
                     # convert xml tree to string
                     root = ET.tostring(crop_ann, encoding='unicode')
                     crop_ann.clear()
@@ -200,4 +229,4 @@ if __name__ == '__main__':
                     bar.next()
 
             bar.finish()
-           
+ 
