@@ -123,6 +123,7 @@ if __name__ == '__main__':
                 row_count+=1
                 col_count = -1
                 for x in range(0, img_width, crop_size-stride):
+                    obj_present = False
                     col_count+=1
                     # crop image
                     crop_img = img[y:y+crop_size, x:x+crop_size]
@@ -158,16 +159,18 @@ if __name__ == '__main__':
                     # write to xml the image it corresponds to
                     filename.text = entry_name + args.filext
 
+                    malformed = False
                     # Bounding box fully contained in image or truncated
                     # Depending on arg
                     for box in bndboxes:
-                        
+                        # object has to be at least 5 pixels wide or tall
                         conditions = [x < box.xmin < x+crop_size, \
                                       y < box.ymin < y+crop_size, \
-                                      x < box.xmax < x+crop_size, \
-                                      y < box.ymax < y+crop_size]
+                                      x+5 < box.xmax < x+crop_size, \
+                                      y+5 < box.ymax < y+crop_size]
                         true_or_trunc = bndbox_in_img(args.include_trunc, conditions)
                         if true_or_trunc in [True,"trunc"]:
+                            obj_present = True
                             # set truncated objects to difficult
                             if true_or_trunc == "trunc":
                                 box.difficult = 1
@@ -189,13 +192,18 @@ if __name__ == '__main__':
                             truncated.text = str(box.truncated)
                             difficult.text = str(box.difficult)
                             # fill bndbox tree
-                            xmin.text = str( max(0, box.xmin-x) )
-                            ymin.text = str( max(0, box.ymin-y) )
+                            xmin.text = str( max(1, box.xmin-x) )
+                            ymin.text = str( max(1, box.ymin-y) )
                             xmax.text = str( min(crop_img_width, box.xmax-x) )
                             ymax.text = str( min(crop_img_height, box.ymax-y) )
 
+                            # check for malformed boxes
+                            if int(xmin.text) >= int(xmax.text) or \
+                                    int(ymin.text) >= int(ymax.text):
+                                malformed = True
+
                     # include dummy obj in background imgs
-                    if args.dummy_obj and true_or_trunc == False:
+                    if not obj_present and args.dummy_obj:
                         # create object xml tree
                         obj = ET.SubElement(crop_ann, 'object')
                         name = ET.SubElement(obj, 'name')
@@ -209,14 +217,14 @@ if __name__ == '__main__':
                         ymax = ET.SubElement(bndbox, 'ymax')
                     
                         # fill obj tree
-                        name.text = "dummmy"
+                        name.text = "dummy"
                         truncated.text = "0"
                         difficult.text = "0"
                         # fill bndbox tree
-                        xmin.text = "0"
-                        ymin.text = "0" 
-                        xmax.text = "1"
-                        ymax.text = "1"
+                        xmin.text = "1"
+                        ymin.text = "1" 
+                        xmax.text = "4"
+                        ymax.text = "4"
                     
                     # convert xml tree to string
                     root = ET.tostring(crop_ann, encoding='unicode')
@@ -225,7 +233,12 @@ if __name__ == '__main__':
                     xmlfile = open(output_annotation, 'w')
                     xmlfile.write(root)                     # write xml
                     cv2.imwrite(output_image, crop_img)     # write img
-                    # progress bar
+
+                    if malformed:
+                        print("\nMalformed box in " + entry_name)
+                        exit()
+                    
+                    # advance progress bar
                     bar.next()
 
             bar.finish()
