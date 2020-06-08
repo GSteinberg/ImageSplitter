@@ -8,6 +8,11 @@ from progress.bar import IncrementalBar
 
 ### Input and output directories must both have images/ and annotations/ subdirs ###
 
+def str2bool(s):
+    if isinstance(s, bool): return s
+    if s == "True": return True
+    return False
+
 def parse_args():
     """
     Parse input arguments
@@ -24,7 +29,7 @@ def parse_args():
                         default=".tif", type=str)
     parser.add_argument('--truncated', dest='include_trunc',
                         help='whether to include truncated objects',
-                        default=True, type=bool)
+                        default=True, type=str2bool)
     parser.add_argument('--input_dir', dest='input_dir',
                         help='directory to take input imgs and anns to split',
                         default='../OrthoData/Mar16Grass/', type=str)
@@ -33,7 +38,7 @@ def parse_args():
                         default='../SplitData/Mar16Grass/naive/', type=str)
     parser.add_argument('--dummy', dest='dummy_obj',
                         help='whether to put dummy object in background imgs',
-                        default=True, type=bool)
+                        default=True, type=str2bool)
 
     args = parser.parse_args()
     return args
