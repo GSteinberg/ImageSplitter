@@ -1,3 +1,7 @@
-## Current requirements without version restrictions ##
-opencv-python
+## Requirements using anaconda ##
+## Run 'conda config --append channels conda-forge' then
+## 'conda install --yes --file requirements.txt' 
+opencv
 progress
+lxml
+# argparse

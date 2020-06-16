@@ -3,7 +3,6 @@ import os
 import sys
 import cv2
 import argparse
-from pprint import pprint
 from progress.bar import IncrementalBar
 
 ### Input and output directories must both have images/ and annotations/ subdirs ###
