@@ -113,11 +113,6 @@ def new_object(box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_
     ymin.text = str(box_ymin)
     xmax.text = str(box_xmax)
     ymax.text = str(box_ymax)
-                        
-    # check for malformed boxes
-    if int(box_xmin) >= int(box_xmax) or int(box_ymin) >= int(box_ymax):
-        print("\nMalformed box in " + name)
-        exit()
 
 
 if __name__ == '__main__':    
@@ -197,13 +192,15 @@ if __name__ == '__main__':
                 # write to xml the image it corresponds to
                 filename.text = entry_name + args.filext
 
+                malformed = False
                 # Bounding box fully contained in image or truncated
                 # Depending on arg
                 for box in bndboxes:
-                    conditions = [x < box.xmin < x+crop_size, \
-                                  y < box.ymin < y+crop_size, \
-                                  x < box.xmax < x+crop_size, \
-                                  y < box.ymax < y+crop_size]
+                    # need to be at least 10 pixels out from border
+                    conditions = [x+10 < box.xmin < x+crop_size-10, \
+                                  y+10 < box.ymin < y+crop_size-10, \
+                                  x+10 < box.xmax < x+crop_size-10, \
+                                  y+10 < box.ymax < y+crop_size-10]
                     # check conditions
                     true_or_trunc = bndbox_in_img(args.include_trunc, conditions)
                     
@@ -219,6 +216,11 @@ if __name__ == '__main__':
                             max(1, box.ymin-y), \
                             min(crop_img_width, box.xmax-x), \
                             min(crop_img_height, box.ymax-y))
+                        
+                        # check for malformed boxes
+                        if max(1, box.xmin-x) >= min(crop_img_width, box.xmax-x) or \
+                                max(1, box.ymin-y) >= min(crop_img_height, box.ymax-y):
+                            malformed = True
 
                 # include dummy obj in background imgs
                 if not obj_present and args.dummy_obj:
@@ -232,9 +234,13 @@ if __name__ == '__main__':
                 xmlfile = open(output_annotation, 'w')
                 xmlfile.write(root)                     # write xml
                 cv2.imwrite(output_image, crop_img)     # write img
+
+                if malformed:
+                    print("\nMalformed box in " + entry_name)
+                    exit()
                 
                 # advance progress bar
                 bar.next()
 
-            bar.finish()
+        bar.finish()
  
