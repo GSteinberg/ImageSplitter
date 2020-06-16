@@ -91,7 +91,7 @@ def read_xml(xml_file: str):
     return bndboxes
 
 # add new object to current xml tree
-def new_object(name, diff, trunc, xmin, ymin, xmax, ymax):
+def new_object(box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_ymax):
     # create object xml tree
     obj = ET.SubElement(crop_ann, 'object')
     name = ET.SubElement(obj, 'name')
@@ -105,14 +105,19 @@ def new_object(name, diff, trunc, xmin, ymin, xmax, ymax):
     ymax = ET.SubElement(bndbox, 'ymax')
 
     # fill obj tree
-    name.text = name
-    truncated.text = str(trunc)
-    difficult.text = str(diff)
+    name.text = box_name
+    truncated.text = str(box_trunc)
+    difficult.text = str(box_diff)
     # fill bndbox tree
-    xmin.text = str(xmin)
-    ymin.text = str(ymin)
-    xmax.text = str(xmax)
-    ymax.text = str(ymax)
+    xmin.text = str(box_xmin)
+    ymin.text = str(box_ymin)
+    xmax.text = str(box_xmax)
+    ymax.text = str(box_ymax)
+                        
+    # check for malformed boxes
+    if int(box_xmin) >= int(box_xmax) or int(box_ymin) >= int(box_ymax):
+        print("\nMalformed box in " + name)
+        exit()
 
 
 if __name__ == '__main__':    
@@ -214,12 +219,6 @@ if __name__ == '__main__':
                             max(1, box.ymin-y), \
                             min(crop_img_width, box.xmax-x), \
                             min(crop_img_height, box.ymax-y))
-
-                        # check for malformed boxes
-                        if int(xmin.text) >= int(xmax.text) or \
-                                int(ymin.text) >= int(ymax.text):
-                            print("\nMalformed box in " + entry_name)
-                            exit()
 
                 # include dummy obj in background imgs
                 if not obj_present and args.dummy_obj:
