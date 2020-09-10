@@ -202,10 +202,10 @@ if __name__ == '__main__':
                 # Depending on arg
                 for box in bndboxes:
                     # need to be at least 10 pixels out from border
-                    conditions = [x+10 < box.xmin < x+crop_size-10, \
-                                  y+10 < box.ymin < y+crop_size-10, \
-                                  x+10 < box.xmax < x+crop_size-10, \
-                                  y+10 < box.ymax < y+crop_size-10]
+                    conditions = [x+5 < box.xmin < x+crop_size-5, \
+                                  y+5 < box.ymin < y+crop_size-5, \
+                                  x+5 < box.xmax < x+crop_size-5, \
+                                  y+5 < box.ymax < y+crop_size-5]
                     # check conditions
                     true_or_trunc = bndbox_in_img(args.include_trunc, conditions)
                     
@@ -213,10 +213,10 @@ if __name__ == '__main__':
                         obj_present = True
                         # set truncated objects to difficult
                         if true_or_trunc == "trunc":
-                            box.difficult = 1
+                            box.truncated = 1
 
                         # add new object to xml
-                        new_object(box.name, box.truncated, box.difficult, \
+                        new_object(box.name, box.difficult, box.truncated, \
                             max(1, box.xmin-x), \
                             max(1, box.ymin-y), \
                             min(crop_img_width, box.xmax-x), \
