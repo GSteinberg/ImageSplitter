@@ -20,9 +20,9 @@ def parse_args():
     parser.add_argument('--size', dest='crop_size',
                         help='size of square cropped sections',
                         default=700, type=int)
-    parser.add_argument('--stride', dest='percent_stride',
-                        help='percent overlap for cropped regions',
-                        default=10, type=int)
+    parser.add_argument('--stride', dest='pixel_stride',
+                        help='amount of overlap for cropped regions (default 10%)',
+                        default=-1, type=int)
     parser.add_argument('--img_type', dest='filext',
                         help='file type of image (e.g. .tif, .png)',
                         default=".tif", type=str)
@@ -123,7 +123,12 @@ if __name__ == '__main__':
     print(args)
 
     crop_size = args.crop_size
-    stride = args.crop_size // args.percent_stride
+    # if no stride flag, set to default
+    stride = None
+    if args.pixel_stride < 0:
+        stride = int(crop_size * 0.1)
+    else:
+        stride = args.pixel_stride
 
     input_images = os.path.join(args.input_dir, "images/")
     input_annotations = os.path.join(args.input_dir, "annotations/")
@@ -182,7 +187,7 @@ if __name__ == '__main__':
                 depth.text = "3"
 
                 # names for each split image and xml pair
-                entry_name = '{}_Split{:02d}{:02d}'.format( \
+                entry_name = '{}_Split{:03d}{:03d}'.format( \
                         os.path.splitext(image.name)[0], \
                         row_count, col_count)
                 output_image = os.path.join(args.output_dir, "images/", \
