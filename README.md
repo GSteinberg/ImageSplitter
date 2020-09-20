@@ -1,23 +1,32 @@
 # **ImageSplitter**
-Split your othomosaics to:
-: Use them for training data in Faster R-CNN 
-: Do predictions on them with Faster R-CNN 
+### **Split your othomosaics to:**
+1. **Use them for training data in Faster R-CNN**
+2. **Do predictions on them with Faster R-CNN**
 ---
 ### Prerequisites
 *anaconda*
+
 Run the following command to download all necessary packages
+
 `conda create --name <env> --file conda_requirements.txt`
+
 You may also need to run the following command if any conda packages cannot be found
+
 `conda config --append channels conda-forge`
 
 *pip*
+
 Run the following command to download all necessary packages
+
 `pip install -r pip_requirements.txt`
+
 I used python 3.6 but this will likely work for future python versions
 
 ### Preparing your data
 *Preparing data for training*
+
 The script is set to the training data mode by default. Do not include the ***--predictions*** flag and it will execute the training data mode.
+
 You must have orthomosaics and their cooresponding annotations organized like below:
 ```
 Orthomosaics
@@ -39,6 +48,7 @@ Orthomosaics
 
 *Preparing data for predictions*
 This is more simple since there are no annotations to work with. Just set the ***--predictions*** flag and the script will execute in prediction mode.
+
 Your directories do not need to be in a special format, just include in ***--input_dir***, an input directory with orthomasics and in ***--output_dir***, an empty output directory to be filled with split photos.
 
 ### To run
