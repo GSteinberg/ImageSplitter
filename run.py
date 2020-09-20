@@ -38,6 +38,10 @@ def parse_args():
     parser.add_argument('--dummy', dest='dummy_obj',
                         help='whether to put dummy object in background imgs to \
                         include them in training', default=True, type=str2bool)
+    parser.add_argument('--predictions', dest='pred_mode',
+                        help='whether to prepare images for predictions or \
+                        training. Default is training.', default=False,
+                        type=str2bool)
 
     args = parser.parse_args()
     return args
@@ -115,7 +119,7 @@ def new_object(box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_
     ymax.text = str(box_ymax)
 
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
 
     args = parse_args()
     
@@ -123,13 +127,52 @@ if __name__ == '__main__':
     print(args)
 
     crop_size = args.crop_size
-    # if no stride flag, set to default
     stride = None
+    # if no stride flag, set to default (10% of crop size)
     if args.pixel_stride < 0:
         stride = int(crop_size * 0.1)
     else:
         stride = args.pixel_stride
 
+    # PREPARE IMAGES FOR PREDICTIONS
+    if args.pred_mode:
+        input_images = args.input_dir
+
+        # every input image
+        for image in os.scandir(input_images):
+            if not image.name.endswith(args.filext):
+                print('{} not being parsed - does not have {} extension'.format( \
+                    image.name, args.filext))
+                continue
+
+            img = cv2.imread(image.path)
+            # input image original size
+            img_height, img_width = img.shape[:2]
+
+            # for output viz
+            bar = IncrementalBar("Processing " + image.name, max= \
+                    len(range(0, img_height, crop_size-stride))* \
+                    len(range(0, img_width, crop_size-stride)))
+            
+            # count to be included in file name
+            row_count = -1
+            # split image
+            for y in range(0, img_height, crop_size-stride):
+                row_count+=1
+                col_count = -1
+                for x in range(0, img_width, crop_size-stride):
+                    obj_present = False
+                    col_count+=1
+                    # crop image
+                    crop_img = img[y:y+crop_size, x:x+crop_size]
+
+                    # if photo is all black, skip
+                    b_and_w = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
+                    if cv2.countNonZero(b_and_w) == 0:
+                        continue
+        
+
+    # PREPARE IMAGES FOR TRAINING AND TESTING
     input_images = os.path.join(args.input_dir, "images/")
     input_annotations = os.path.join(args.input_dir, "annotations/")
 
