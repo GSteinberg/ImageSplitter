@@ -21,7 +21,7 @@ def parse_args():
                         help='size of square cropped sections',
                         default=700, type=int)
     parser.add_argument('--stride', dest='pixel_stride',
-                        help='amount of overlap for cropped regions (default 10%)',
+                        help='amount of overlap for cropped regions (default 10%%)',
                         default=-1, type=int)
     parser.add_argument('--img_type', dest='filext',
                         help='file type of image (e.g. .tif, .png)',
