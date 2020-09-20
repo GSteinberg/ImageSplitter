@@ -31,13 +31,13 @@ def parse_args():
                         default=True, type=str2bool)
     parser.add_argument('--input_dir', dest='input_dir',
                         help='directory to take input imgs and anns to split',
-                        default='../OrthoData/Mar16Grass/', type=str)
+                        type=str)
     parser.add_argument('--output_dir', dest='output_dir',
                         help='directory to save cropped imgs and anns',
-                        default='../SplitData/Mar16Grass/naive/', type=str)
+                        type=str)
     parser.add_argument('--dummy', dest='dummy_obj',
-                        help='whether to put dummy object in background imgs',
-                        default=True, type=str2bool)
+                        help='whether to put dummy object in background imgs to \
+                        include them in training', default=True, type=str2bool)
 
     args = parser.parse_args()
     return args
