@@ -47,6 +47,7 @@ Orthomosaics
 - The images and xmls do not have be named in this format (i.e. 1_RGB, 2_RGB) but the corresponding annotations and images must have the same file stem.
 
 *Preparing data for predictions*
+
 This is more simple since there are no annotations to work with. Just set the ***--predictions*** flag and the script will execute in prediction mode.
 
 Your directories do not need to be in a special format, just include in ***--input_dir***, an input directory with orthomasics and in ***--output_dir***, an empty output directory to be filled with split photos.
