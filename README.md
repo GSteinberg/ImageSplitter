@@ -1,5 +1,5 @@
 # **ImageSplitter**
-### **Split your othomosaics to:**
+### **Split your orthomosaics to:**
 1. **Use them for training data in Faster R-CNN**
 2. **Do predictions on them with Faster R-CNN**
 ---
