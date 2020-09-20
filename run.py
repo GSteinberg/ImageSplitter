@@ -170,7 +170,22 @@ if __name__ == '__main__':
                     b_and_w = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
                     if cv2.countNonZero(b_and_w) == 0:
                         continue
-        
+
+                    # write img
+                    entry_name = '{}_Split{:03d}{:03d}'.format( \
+                            os.path.splitext(image.name)[0], \
+                            row_count, col_count)
+                    output_image = os.path.join(args.output_dir, \
+                            '{}{}'.format(entry_name, args.filext))
+                    cv2.imwrite(output_image, crop_img)
+
+                    # advance progress bar
+                    bar.next()
+
+            bar.finish()
+
+        exit()
+
 
     # PREPARE IMAGES FOR TRAINING AND TESTING
     input_images = os.path.join(args.input_dir, "images/")
