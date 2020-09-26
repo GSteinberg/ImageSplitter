@@ -25,16 +25,21 @@ I used python 3.6 but this will likely work for future python versions
 ### Preparing your data
 *Preparing data for training*
 
-The script is set to the training data mode by default. Do not include the ***--predictions*** flag and it will execute the training data mode.
+The script is set to the training data mode by default. Do not include the ***--predictions*** flag and it will execute the training data mode. Training data mode assumes that you have annotations for your orthomosaics so it will split the annotations accordingly while prediction mode assume you have no annotations. 
 
 You must have orthomosaics and their cooresponding annotations organized like below:
 ```
-Orthomosaics
+OrthoData
 ├── annotations 
 │   ├── 1_RGB.xml  
 │   ├── 2_RGB.xml  
 │   ├── 3_RGB.xml  
-│   └── 4_RGB.xml  
+│   └── 4_RGB.xml
+├── metadata
+│   ├── 1_RGB.tfw 
+│   ├── 2_RGB.tfw
+│   ├── 3_RGB.tfw  
+│   └── 4_RGB.tfw
 └── images 
     ├── 1_RGB.tif 
     ├── 2_RGB.tif 
@@ -42,9 +47,10 @@ Orthomosaics
     └── 4_RGB.tif  
 ```
 ***Notes***
-- *Orthomosaics* in this case is what you would put in the ***--input_dir*** parameter
+- *OrthoData* in this case is what you would put in the ***--input_dir*** parameter
 - The directory that you set as your ***--output_dir*** must also have directories named *annotations* and *images* in it or else the script will fail
 - The images and xmls do not have be named in this format (i.e. 1_RGB, 2_RGB) but the corresponding annotations and images must have the same file stem.
+- Training mode requires all three subdirectories of *OrthoData* while prediction mode requires only *images* and *metadata*.
 
 *Preparing data for predictions*
 
