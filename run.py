@@ -22,9 +22,9 @@ def parse_args():
 	parser.add_argument('--size', dest='crop_size',
 						help='size of square cropped sections',
 						default=700, type=int)
-	parser.add_argument('--stride', dest='pixel_stride',
-						help='amount of overlap for cropped regions (default 10%%)',
-						default=-1, type=int)
+	parser.add_argument('--stride', dest='perc_stride',
+						help='fraction of overlap for cropped regions (default 0.1)',
+						default=0.1, type=float)
 	parser.add_argument('--img_type', dest='filext',
 						help='file type of image (e.g. .tif, .png)',
 						default=".tif", type=str)
@@ -126,7 +126,8 @@ def new_object(box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_
 
 
 # performs splitting logic
-def split_images_and_annotations(crop_size, stride, filext, include_trunc, input_imgs, output_imgs, dummy_obj, train_mode):
+def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_imgs,
+								 output_imgs, dummy_obj, train_mode):
 	# if preparing for training, 2 sub-input-directories are needed
 	if train_mode:
 		input_imgs = os.path.join(args.input_dir, "images/")
@@ -136,24 +137,38 @@ def split_images_and_annotations(crop_size, stride, filext, include_trunc, input
 	for image in os.scandir(input_imgs):
 		# only check images with correct extension
 		if not image.name.endswith(args.filext):
-			print('{} not being parsed - does not have {} extension'.format( \
-				image.name, args.filext))
+			print('{} not being parsed - does not have {} extension'.format(image.name, filext))
 			continue
 
-		img = cv2.imread(image.path)
-		# input image original size
-		img_height, img_width = img.shape[:2]
+		img = cv2.imread(image.path)				# load image
+		img_height, img_width = img.shape[:2]		# input image original size
+
+		# adjust crop size to eliminate remainder
+		horz_crops, width_rem  = (img_width  / (crop_size-stride)) % 1
+		vert_crops, height_rem = (img_height / (crop_size-stride)) % 1
+
+		if width_rem < length_rem:		# less remainder in width than in height
+			if width_rem > 0.5:			# shrink to fit extra
+				crop_minus_stride = img_width / (horz_crops+1)
+			else:						# grow to keep same amount
+				crop_minus_stride = img_width / horz_crops
+		else:							# less remainder in height than in width
+			if height_rem > 0.5:		# shrink to fit extra
+				crop_minus_stride = img_height / (vert_crops+1)
+			else:						# grow to keep same amount
+				crop_minus_stride = img_height / vert_crops
+
+		crop_size = int( (crop_minus_stride*100) / (100-perc_stride) )
+		stride = int(crop_size * perc_stride)
 
 		# for output viz
 		bar = IncrementalBar("Processing " + image.name, max= \
 				len(range(0, img_height, crop_size-stride))* \
-				len(range(0, img_width, crop_size-stride)))
+				len(range(0, img_width,  crop_size-stride)))
 
 		# if training, get list of BoundingBox objects for image
 		if train_mode:
-			bndboxes = read_xml(os.path.join( \
-					input_annotations, \
-					os.path.splitext(image.name)[0] + ".xml"))
+			bndboxes = read_xml(os.path.join(input_annotations, os.path.splitext(image.name)[0] + ".xml"))
 
 		# count to be included in file name
 		row_count = -1
@@ -273,16 +288,8 @@ if __name__ == '__main__':
 	print("Called with args:")
 	print(args)
 
-	# adjust crop size to eliminate remainder
-	
+	# set stride from percent to amount of pixels
+	stride = int(args.crop_size * args.perc_stride)
 
-	# if no stride flag, set to default (10% of crop size)
-	stride = None
-	if args.pixel_stride < 0:
-		stride = int(crop_size * 0.1)
-	else:
-		stride = args.pixel_stride
-
-
-	split_images_and_annotations(crop_size, stride, args.filext, args.include_trunc, args.input_dir, args.output_dir,
+	split_images_and_annotations(args.crop_size, stride, args.filext, args.include_trunc, args.input_dir, args.output_dir,
 								 args.dummy_obj, args.pred_mode)
