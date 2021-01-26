@@ -168,7 +168,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 
 		# if training, get list of BoundingBox objects for image
 		if train_mode:
-			bndboxes = read_xml(os.path.join(input_annotations, os.path.splitext(image.name)[0] + ".xml"))
+			bndboxes = read_xml(os.path.join(input_anns, os.path.splitext(image.name)[0] + ".xml"))
 
 		# count to be included in file name
 		row_count = -1
@@ -215,7 +215,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 					output_image = os.path.join(output_imgs, \
 							'{}{}'.format(entry_name, filext))
 				
-				# actual write
+				# actual image write
 				cv2.imwrite(output_image, crop_img)
 
 				# if prediction mode, skip all the remaining steps --------------------
