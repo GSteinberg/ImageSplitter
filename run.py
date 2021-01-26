@@ -126,7 +126,7 @@ def new_object(box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_
 
 
 # performs splitting logic
-def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_imgs,
+def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_imgs, 
                                  output_imgs, dummy_obj, train_mode):
     # if preparing for training, 2 sub-input-directories are needed
     if train_mode:
@@ -291,5 +291,6 @@ if __name__ == '__main__':
     # set stride from percent to amount of pixels
     stride = int(args.crop_size * args.perc_stride)
 
-    split_images_and_annotations(args.crop_size, stride, args.filext, args.include_trunc, args.input_dir, args.output_dir,
+    split_images_and_annotations(args.crop_size, args.perc_stride, stride, args.filext, 
+                                 args.include_trunc, args.input_dir, args.output_dir,
                                  args.dummy_obj, args.pred_mode)
