@@ -130,13 +130,13 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 								 output_imgs, dummy_obj, train_mode):
 	# if preparing for training, 2 sub-input-directories are needed
 	if train_mode:
-		input_imgs = os.path.join(args.input_dir, "images/")
-		input_anns = os.path.join(args.input_dir, "annotations/")
+		input_imgs = os.path.join(input_imgs, "images/")
+		input_anns = os.path.join(input_imgs, "annotations/")
 
 	# iterate through every image in input_dir
 	for image in os.scandir(input_imgs):
 		# only check images with correct extension
-		if not image.name.endswith(args.filext):
+		if not image.name.endswith(filext):
 			print('{} not being parsed - does not have {} extension'.format(image.name, filext))
 			continue
 
@@ -227,7 +227,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 				output_annotation = os.path.join(output_imgs, "annotations/" \
 						'{}.xml'.format(entry_name))
 				# write to xml the image it corresponds to
-				filename.text = entry_name + args.filext
+				filename.text = entry_name + filext
 
 				malformed = False
 				# Bounding box fully contained in image or truncated
@@ -239,7 +239,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 								  x+5 < box.xmax < x+crop_size-5, \
 								  y+5 < box.ymax < y+crop_size-5]
 					# check conditions
-					true_or_trunc = bndbox_in_img(args.include_trunc, conditions)
+					true_or_trunc = bndbox_in_img(include_trunc, conditions)
 					
 					if true_or_trunc in [True,"trunc"]:
 						obj_present = True
@@ -260,7 +260,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 							malformed = True
 
 				# include dummy obj in background imgs
-				if not obj_present and args.dummy_obj:
+				if not obj_present and dummy_obj:
 					# add new object to xml
 					new_object("dummy", 0, 0, 1, 1, 3, 3)
 				
