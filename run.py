@@ -144,27 +144,28 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
         img_height, img_width = img.shape[:2]       # input image original size
 
         # adjust crop size to eliminate remainder
-        horz_crops, width_rem  = (img_width  / (crop_size-stride)) % 1
-        vert_crops, height_rem = (img_height / (crop_size-stride)) % 1
+        horz_crops = int(img_width  / (crop_size-stride))
+        vert_crops = int(img_height / (crop_size-stride))
+        width_rem  = (img_width  / (crop_size-stride)) % 1
+        height_rem = (img_height / (crop_size-stride)) % 1
 
-        if width_rem < length_rem:      # less remainder in width than in height
+        if width_rem < height_rem:      # less remainder in width than in height
             if width_rem > 0.5:         # shrink to fit extra
-                crop_minus_stride = img_width / (horz_crops+1)
+                crop_minus_stride = int(img_width / (horz_crops+1))
             else:                       # grow to keep same amount
-                crop_minus_stride = img_width / horz_crops
+                crop_minus_stride = int(img_width / horz_crops)
         else:                           # less remainder in height than in width
             if height_rem > 0.5:        # shrink to fit extra
-                crop_minus_stride = img_height / (vert_crops+1)
+                crop_minus_stride = int(img_height / (vert_crops+1))
             else:                       # grow to keep same amount
-                crop_minus_stride = img_height / vert_crops
+                crop_minus_stride = int(img_height / vert_crops)
 
-        crop_size = int( (crop_minus_stride*100) / (100-perc_stride) )
+        pdb.set_trace()
+        crop_size = int( (crop_minus_stride*100) / (100-(perc_stride*100)) )
         stride = int(crop_size * perc_stride)
 
         # for output viz
-        bar = IncrementalBar("Processing " + image.name, max= \
-                len(range(0, img_height, crop_size-stride))* \
-                len(range(0, img_width,  crop_size-stride)))
+        bar = IncrementalBar("Processing " + image.name, max=horz_crops*vert_crops)
 
         # if training, get list of BoundingBox objects for image
         if train_mode:
