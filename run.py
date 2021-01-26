@@ -293,4 +293,4 @@ if __name__ == '__main__':
 
     split_images_and_annotations(args.crop_size, args.perc_stride, stride, args.filext, 
                                  args.include_trunc, args.input_dir, args.output_dir,
-                                 args.dummy_obj, args.pred_mode)
+                                 args.dummy_obj, args.train_mode)
