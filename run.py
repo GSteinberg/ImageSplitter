@@ -126,12 +126,12 @@ def new_object(box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_
 
 
 # performs splitting logic
-def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_imgs, 
-                                 output_imgs, dummy_obj, train_mode):
+def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_dir, 
+                                 output_dir, dummy_obj, train_mode):
     # if preparing for training, 2 sub-input-directories are needed
     if train_mode:
-        input_imgs = os.path.join(input_imgs, "images/")
-        input_anns = os.path.join(input_imgs, "annotations/")
+        input_imgs = os.path.join(input_dir, "images/")
+        input_anns = os.path.join(input_dir, "annotations/")
 
     # iterate through every image in input_dir
     for image in os.scandir(input_imgs):
@@ -160,7 +160,6 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
             else:                       # grow to keep same amount
                 crop_minus_stride = int(img_height / vert_crops)
 
-        pdb.set_trace()
         crop_size = int( (crop_minus_stride*100) / (100-(perc_stride*100)) )
         stride = int(crop_size * perc_stride)
 
@@ -183,9 +182,9 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                 # crop image
                 crop_img = img[y:y+crop_size, x:x+crop_size]
 
-                # if photo is all black, skip
+                # if photo is all black or remainder, skip
                 b_and_w = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
-                if cv2.countNonZero(b_and_w) == 0:
+                if (cv2.countNonZero(b_and_w) == 0) or (crop_img.shape[0] != crop_img.shape[1]):
                     continue
 
                 if train_mode:
@@ -210,10 +209,10 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                         row_count, col_count)
 
                 if train_mode:
-                    output_image = os.path.join(output_imgs, "images/", \
+                    output_image = os.path.join(output_dir, "images/", \
                             '{}{}'.format(entry_name, filext))
                 else:
-                    output_image = os.path.join(output_imgs, \
+                    output_image = os.path.join(output_dir, \
                             '{}{}'.format(entry_name, filext))
                 
                 # actual image write
@@ -225,7 +224,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                     continue
 
                 # creating annotations
-                output_annotation = os.path.join(output_imgs, "annotations/" \
+                output_annotation = os.path.join(output_dir, "annotations/" \
                         '{}.xml'.format(entry_name))
                 # write to xml the image it corresponds to
                 filename.text = entry_name + filext
