@@ -101,9 +101,9 @@ def read_xml(xml_file: str):
 
 
 # add new object to current xml tree
-def new_object(box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_ymax):
+def new_object(umbrella_elemt, box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_ymax):
     # create object xml tree
-    obj = ET.SubElement(crop_ann, 'object')
+    obj = ET.SubElement(umbrella_elemt, 'object')
     name = ET.SubElement(obj, 'name')
     truncated = ET.SubElement(obj, 'truncated')
     difficult = ET.SubElement(obj, 'difficult')
@@ -248,7 +248,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                             box.truncated = 1
 
                         # add new object to xml
-                        new_object(box.name, box.difficult, box.truncated, \
+                        new_object(crop_ann, box.name, box.difficult, box.truncated, \
                             max(1, box.xmin-x), \
                             max(1, box.ymin-y), \
                             min(crop_img_width, box.xmax-x), \
