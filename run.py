@@ -150,15 +150,15 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
         height_rem = (img_height / (crop_size-stride)) % 1
 
         if width_rem < height_rem:      # less remainder in width than in height
-            if width_rem > 0.5:         # shrink to fit extra
-                crop_minus_stride = int(img_width / (horz_crops+1))
-            else:                       # grow to keep same amount
-                crop_minus_stride = int(img_width / horz_crops)
+            # if width > 0.5, add row which shrinks size
+            # if width <= 0.5, keep num of rows which grows size
+            width_rem_hi_lo = (width_rem > 0.5)
+            crop_minus_stride = int(img_width / (horz_crops + width_rem_hi_lo))
         else:                           # less remainder in height than in width
-            if height_rem > 0.5:        # shrink to fit extra
-                crop_minus_stride = int(img_height / (vert_crops+1))
-            else:                       # grow to keep same amount
-                crop_minus_stride = int(img_height / vert_crops)
+            # if length > 0.5, add col which shrinks size
+            # if length <= 0.5, keep num of cols which grows size
+            height_rem_hi_lo = (height_rem > 0.5)
+            crop_minus_stride = int(img_height / (vert_crops + height_rem_hi_lo))
 
         crop_size = int( (crop_minus_stride*100) / (100-(perc_stride*100)) )
         stride = int(crop_size * perc_stride)
