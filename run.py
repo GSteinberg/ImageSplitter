@@ -262,7 +262,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                 # include dummy obj in background imgs
                 if not obj_present and dummy_obj:
                     # add new object to xml
-                    new_object("dummy", 0, 0, 1, 1, 3, 3)
+                    new_object(crop_ann, "dummy", 0, 0, 1, 1, 3, 3)
                 
                 # convert xml tree to string
                 root = ET.tostring(crop_ann, encoding='unicode')
