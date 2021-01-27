@@ -4,9 +4,10 @@ import sys
 import cv2
 import pdb
 import argparse
+import json
 from progress.bar import IncrementalBar
 
-### Input and output directories must both have images/ and annotations/ subdirs ###
+### All input directories must both have images/ and annotations/ subdirs ###
 
 def str2bool(s):
     if isinstance(s, bool): return s
@@ -31,15 +32,12 @@ def parse_args():
     parser.add_argument('--truncated', dest='include_trunc',
                         help='whether to include truncated objects',
                         default=True, type=str2bool)
-    parser.add_argument('--input_dir', dest='input_dir',
-                        help='directory to take input imgs and anns to split',
-                        type=str)
+    parser.add_argument('--input_dirs', dest='input_dirs',
+                        help='directories to take input imgs and anns to split',
+                        nargs="+")
     parser.add_argument('--output_dir', dest='output_dir',
                         help='directory to save cropped imgs and anns',
                         type=str)
-    parser.add_argument('--dummy', dest='dummy_obj',
-                        help='whether to put dummy object in background imgs to \
-                        include them in training', default=True, type=str2bool)
     parser.add_argument('--for_training', dest='train_mode',
                         help='whether to prepare images for training or \
                         just predictions. Default is training.', default=True,
@@ -126,159 +124,164 @@ def new_object(umbrella_elemt, box_name, box_diff, box_trunc, box_xmin, box_ymin
 
 
 # performs splitting logic
-def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_dir, 
+def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_dirs, 
                                  output_dir, dummy_obj, train_mode):
     # if preparing for training, 2 sub-input-directories are needed
+    input_imgs_lst = []
+    input_anns_lst = []
     if train_mode:
-        input_imgs = os.path.join(input_dir, "images/")
-        input_anns = os.path.join(input_dir, "annotations/")
+        for in_dir in input_dirs:
+            input_imgs_lst.append(os.path.join(in_dir, "images/"))
+            input_anns_lst.append(os.path.join(in_dir, "annotations/"))
 
-    # iterate through every image in input_dir
-    for image in os.scandir(input_imgs):
-        # only check images with correct extension
-        if not image.name.endswith(filext):
-            print('{} not being parsed - does not have {} extension'.format(image.name, filext))
-            continue
+    # iterate through every input img directory
+    for dir_num, input_imgs in enumerate(input_imgs_lst):
+        # iterate through every image in input_dirs
+        for image in os.scandir(input_imgs):
+            # only check images with correct extension
+            if not image.name.endswith(filext):
+                print('{} not being parsed - does not have {} extension'.format(image.name, filext))
+                continue
 
-        img = cv2.imread(image.path)                # load image
-        img_height, img_width = img.shape[:2]       # input image original size
+            img = cv2.imread(image.path)                # load image
+            img_height, img_width = img.shape[:2]       # input image original size
 
-        # adjust crop size to eliminate remainder
-        horz_crops = int(img_width  / (crop_size-stride))
-        vert_crops = int(img_height / (crop_size-stride))
-        width_rem  = (img_width  / (crop_size-stride)) % 1
-        height_rem = (img_height / (crop_size-stride)) % 1
+            # adjust crop size to eliminate remainder
+            horz_crops = int(img_width  / (crop_size-stride))
+            vert_crops = int(img_height / (crop_size-stride))
+            width_rem  = (img_width  / (crop_size-stride)) % 1
+            height_rem = (img_height / (crop_size-stride)) % 1
 
-        if width_rem < height_rem:      # less remainder in width than in height
-            # if width > 0.5, add row which shrinks size
-            # if width <= 0.5, keep num of rows which grows size
-            width_rem_hi_lo = (width_rem > 0.5)
-            crop_minus_stride = int(img_width / (horz_crops + width_rem_hi_lo))
-        else:                           # less remainder in height than in width
-            # if length > 0.5, add col which shrinks size
-            # if length <= 0.5, keep num of cols which grows size
-            height_rem_hi_lo = (height_rem > 0.5)
-            crop_minus_stride = int(img_height / (vert_crops + height_rem_hi_lo))
+            if width_rem < height_rem:      # less remainder in width than in height
+                # if width > 0.5, add row which shrinks size
+                # if width <= 0.5, keep num of rows which grows size
+                width_rem_hi_lo = (width_rem > 0.5)
+                crop_minus_stride = int(img_width / (horz_crops + width_rem_hi_lo))
+            else:                           # less remainder in height than in width
+                # if length > 0.5, add col which shrinks size
+                # if length <= 0.5, keep num of cols which grows size
+                height_rem_hi_lo = (height_rem > 0.5)
+                crop_minus_stride = int(img_height / (vert_crops + height_rem_hi_lo))
 
-        crop_size = int( (crop_minus_stride*100) / (100-(perc_stride*100)) )
-        stride = int(crop_size * perc_stride)
+            crop_size = int( (crop_minus_stride*100) / (100-(perc_stride*100)) )
+            stride = int(crop_size * perc_stride)
 
-        # for output viz
-        bar = IncrementalBar("Processing " + image.name, max=horz_crops*vert_crops)
+            # for output viz
+            bar = IncrementalBar("Processing " + image.name, max=horz_crops*vert_crops)
 
-        # if training, get list of BoundingBox objects for image
-        if train_mode:
-            bndboxes = read_xml(os.path.join(input_anns, os.path.splitext(image.name)[0] + ".xml"))
+            if train_mode:
+                # get list of BoundingBox objects
+                bndboxes = read_xml(os.path.join(
+                        input_anns_lst[dir_num], os.path.splitext(image.name)[0] + ".xml"))
 
-        # count to be included in file name
-        row_count = -1
-        # split image
-        for y in range(0, img_height, crop_size-stride):
-            row_count += 1
-            col_count = -1
-            for x in range(0, img_width, crop_size-stride):
-                obj_present = False
-                col_count+=1
-                # crop image
-                crop_img = img[y:y+crop_size, x:x+crop_size]
+                # create basic json structure
+                annot = {}
+                annot['images'] = []
+                annot['annotations'] = []
+                annot['categories'] = []
 
-                # if photo is all black or remainder, skip
-                b_and_w = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
-                if (cv2.countNonZero(b_and_w) == 0) or (crop_img.shape[0] != crop_img.shape[1]):
-                    continue
+            row_count = -1      # count to be included in file name
+            img_id = 0          # img id in annotation
+            box_id = 0          # bndbox id in annotation
+            # split image
+            for y in range(0, img_height, crop_size-stride):
+                row_count += 1
+                col_count = -1
+                for x in range(0, img_width, crop_size-stride):
+                    col_count+=1
+                    # crop image
+                    crop_img = img[y:y+crop_size, x:x+crop_size]
 
-                if train_mode:
-                    # Create basic xml structure for writing
-                    crop_ann = ET.Element('annotation')
-                    filename = ET.SubElement(crop_ann, 'filename')
-                    size = ET.SubElement(crop_ann, 'size')
-                    width = ET.SubElement(size, 'width')
-                    height = ET.SubElement(size, 'height')
-                    depth = ET.SubElement(size, 'depth')
+                    # if photo is all black or remainder, skip
+                    b_and_w = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
+                    if (cv2.countNonZero(b_and_w) == 0) or (crop_img.shape[0] != crop_img.shape[1]):
+                        continue
+
+                    # write img
+                    entry_name = '{}_Split{:03d}{:03d}'.format( \
+                            os.path.splitext(image.name)[0], \
+                            row_count, col_count)
+
+                    if train_mode:
+                        output_image = os.path.join(output_dir, "images/", \
+                                '{}{}'.format(entry_name, filext))
+                    else:
+                        output_image = os.path.join(output_dir, \
+                                '{}{}'.format(entry_name, filext))
                     
-                    # size of cropped img
-                    crop_img_height, crop_img_width = crop_img.shape[:2]
-                    # write size data to xml
-                    height.text = str(crop_img_height)
-                    width.text = str(crop_img_width)
-                    depth.text = "3"
+                    # actual image write
+                    cv2.imwrite(output_image, crop_img)
 
-                # write img
-                entry_name = '{}_Split{:03d}{:03d}'.format( \
-                        os.path.splitext(image.name)[0], \
-                        row_count, col_count)
+                    # if prediction mode, skip all the remaining steps --------------------
+                    if not train_mode:
+                        bar.next()
+                        continue
 
-                if train_mode:
-                    output_image = os.path.join(output_dir, "images/", \
-                            '{}{}'.format(entry_name, filext))
-                else:
-                    output_image = os.path.join(output_dir, \
-                            '{}{}'.format(entry_name, filext))
-                
-                # actual image write
-                cv2.imwrite(output_image, crop_img)
+                    # add image entry to annotation
+                    # TODO maybe make the ints into str
+                    annot['images'].append({
+                        'id': img_id,
+                        'file_name': entry_name + filext,
+                        'height': crop_size,
+                        'width': crop_size
+                    })
 
-                # if prediction mode, skip all the remaining steps --------------------
-                if not train_mode:
-                    bar.next()
-                    continue
-
-                # creating annotations
-                output_annotation = os.path.join(output_dir, "annotations/" \
-                        '{}.xml'.format(entry_name))
-                # write to xml the image it corresponds to
-                filename.text = entry_name + filext
-
-                malformed = False
-                # Bounding box fully contained in image or truncated
-                # Depending on arg
-                for box in bndboxes:
-                    # need to be at least 10 pixels out from border
-                    conditions = [x+5 < box.xmin < x+crop_size-5, \
-                                  y+5 < box.ymin < y+crop_size-5, \
-                                  x+5 < box.xmax < x+crop_size-5, \
-                                  y+5 < box.ymax < y+crop_size-5]
-                    # check conditions
-                    true_or_trunc = bndbox_in_img(include_trunc, conditions)
-                    
-                    if true_or_trunc in [True,"trunc"]:
-                        obj_present = True
-                        # set truncated objects to difficult
-                        if true_or_trunc == "trunc":
-                            box.truncated = 1
-
-                        # add new object to xml
-                        new_object(crop_ann, box.name, box.difficult, box.truncated, \
-                            max(1, box.xmin-x), \
-                            max(1, box.ymin-y), \
-                            min(crop_img_width, box.xmax-x), \
-                            min(crop_img_height, box.ymax-y))
+                    malformed = False
+                    # Bounding box fully contained in image or truncated
+                    # Depending on arg
+                    for box in bndboxes:
+                        # need to be at least 10 pixels out from border
+                        conditions = [x+5 < box.xmin < x+crop_size-5, \
+                                      y+5 < box.ymin < y+crop_size-5, \
+                                      x+5 < box.xmax < x+crop_size-5, \
+                                      y+5 < box.ymax < y+crop_size-5]
+                        # check conditions
+                        true_or_trunc = bndbox_in_img(include_trunc, conditions)
                         
-                        # check for malformed boxes
-                        if max(1, box.xmin-x) >= min(crop_img_width, box.xmax-x) or \
-                                max(1, box.ymin-y) >= min(crop_img_height, box.ymax-y):
-                            malformed = True
+                        if true_or_trunc in [True,"trunc"]:
+                            # set truncated objects to difficult
+                            if true_or_trunc == "trunc":
+                                box.truncated = 1
 
-                # include dummy obj in background imgs
-                if not obj_present and dummy_obj:
-                    # add new object to xml
-                    new_object(crop_ann, "dummy", 0, 0, 1, 1, 3, 3)
-                
-                # convert xml tree to string
-                root = ET.tostring(crop_ann, encoding='unicode')
-                crop_ann.clear()
-                
-                xmlfile = open(output_annotation, 'w')
-                xmlfile.write(root)                     # write xml
+                            # add new object to xml
+                            # new_object(crop_ann, box.name, box.difficult, box.truncated, \
+                            #     max(1, box.xmin-x), \
+                            #     max(1, box.ymin-y), \
+                            #     min(crop_img_width, box.xmax-x), \
+                            #     min(crop_img_height, box.ymax-y))
 
-                if malformed:
-                    print("\nMalformed box in " + entry_name)
-                    exit()
+                            # add new object to json
+                            bbox = [max(1, box.xmin-x),
+                                    max(1, box.ymin-y), 
+                                    min(crop_img_width, box.xmax-x),
+                                    min(crop_img_height, box.ymax-y)
+                            ]
+                            area = (bbox[0]-bbox[1]) * (bbox[2]-bbox[3])
+                            annot['annotations'].append({
+                                  'image_id': img_id,
+                                  'id': box_id,
+                                  'category_id': ,
+                                  'bbox': bbox,
+                                  'area': ,
+                                  'segmentation': [bbox],
+                                  'iscrowd': 0
+                            })
+                            
+                            # check for malformed boxes
+                            if max(1, box.xmin-x) >= min(crop_img_width, box.xmax-x) or \
+                                    max(1, box.ymin-y) >= min(crop_img_height, box.ymax-y):
+                                malformed = True
 
-                # advance progress bar
-                bar.next()
+                            box_id+=1       # increment bndbox id
 
-        bar.finish()
+                    if malformed:
+                        print("\nMalformed box in " + entry_name)
+                        exit()
+
+                    img_id+=1       # increment image id
+                    bar.next()      # advance progress bar
+
+            bar.finish()
 
 
 if __name__ == '__main__':
@@ -292,5 +295,5 @@ if __name__ == '__main__':
     stride = int(args.crop_size * args.perc_stride)
 
     split_images_and_annotations(args.crop_size, args.perc_stride, stride, args.filext, 
-                                 args.include_trunc, args.input_dir, args.output_dir,
+                                 args.include_trunc, args.input_dirs, args.output_dir,
                                  args.dummy_obj, args.train_mode)
