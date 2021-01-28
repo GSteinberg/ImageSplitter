@@ -48,18 +48,13 @@ def parse_args():
 
 
 class BoundingBox:
-    def __init__(self, name, trunc, diff, xmin, ymin, xmax, ymax):
-        self.name = name
-        self.truncated = trunc
-        self.difficult = diff
+    def __init__(self, cat_name, cat_id, trunc, diff, xmin, ymin, xmax, ymax):
+        self.cat_name = cat_name
+        self.cat_id = cat_id
         self.xmin = xmin
         self.ymin = ymin
         self.xmax = xmax
         self.ymax = ymax
-
-    # for printing
-    def __str__(self):
-        return vars(self)
 
 
 def bndbox_in_img(include_trunc, conditions):
@@ -82,45 +77,25 @@ def read_xml(xml_file: str):
     root = tree.getroot()
 
     bndboxes = []
+    categories = []
+    cat_counter = 0
     for boxes in root.iter('object'):
         name = boxes.find("name").text
-        truncated = int(boxes.find("truncated").text)
-        difficult = int(boxes.find("difficult").text)
+        cat_id = cat_counter
+        if name not in categories:
+            categories.append(name)
+            cat_counter+=1
+
         for box in boxes.findall("bndbox"):
             xmin = int(box.find("xmin").text)
             ymin = int(box.find("ymin").text)
             xmax = int(box.find("xmax").text)
             ymax = int(box.find("ymax").text)
         
-        bb = BoundingBox(name, truncated, difficult, xmin, ymin, xmax, ymax)
+        bb = BoundingBox(name, cat_counter, xmin, ymin, xmax, ymax)
         bndboxes.append(bb)
 
     return bndboxes
-
-
-# add new object to current xml tree
-def new_object(umbrella_elemt, box_name, box_diff, box_trunc, box_xmin, box_ymin, box_xmax, box_ymax):
-    # create object xml tree
-    obj = ET.SubElement(umbrella_elemt, 'object')
-    name = ET.SubElement(obj, 'name')
-    truncated = ET.SubElement(obj, 'truncated')
-    difficult = ET.SubElement(obj, 'difficult')
-    # create bndbox xml tree
-    bndbox = ET.SubElement(obj, 'bndbox')
-    xmin = ET.SubElement(bndbox, 'xmin')
-    ymin = ET.SubElement(bndbox, 'ymin')
-    xmax = ET.SubElement(bndbox, 'xmax')
-    ymax = ET.SubElement(bndbox, 'ymax')
-
-    # fill obj tree
-    name.text = box_name
-    truncated.text = str(box_trunc)
-    difficult.text = str(box_diff)
-    # fill bndbox tree
-    xmin.text = str(box_xmin)
-    ymin.text = str(box_ymin)
-    xmax.text = str(box_xmax)
-    ymax.text = str(box_ymax)
 
 
 # performs splitting logic
@@ -180,7 +155,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                 annot['annotations'] = []
                 annot['categories'] = []
 
-            row_count = -1      # count to be included in file name
+            row_count = -1      # row count to be included in file name
             img_id = 0          # img id in annotation
             box_id = 0          # bndbox id in annotation
             # split image
@@ -188,7 +163,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                 row_count += 1
                 col_count = -1
                 for x in range(0, img_width, crop_size-stride):
-                    col_count+=1
+                    col_count += 1
                     # crop image
                     crop_img = img[y:y+crop_size, x:x+crop_size]
 
@@ -243,27 +218,24 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                             if true_or_trunc == "trunc":
                                 box.truncated = 1
 
-                            # add new object to xml
-                            # new_object(crop_ann, box.name, box.difficult, box.truncated, \
-                            #     max(1, box.xmin-x), \
-                            #     max(1, box.ymin-y), \
-                            #     min(crop_img_width, box.xmax-x), \
-                            #     min(crop_img_height, box.ymax-y))
-
                             # add new object to json
-                            bbox = [max(1, box.xmin-x),
-                                    max(1, box.ymin-y), 
-                                    min(crop_img_width, box.xmax-x),
-                                    min(crop_img_height, box.ymax-y)
-                            ]
-                            area = (bbox[0]-bbox[1]) * (bbox[2]-bbox[3])
+                            bbox_x_min, x1 = max(1, box.xmin-x)
+                            bbox_y_min, y1 = max(1, box.ymin-y)
+                            bbox_x_max, x2 = min(crop_img_width, box.xmax-x)
+                            bbox_y_max, y2 = min(crop_img_height, box.ymax-y)
+                            bbox_width = x2 - x1
+                            bbox_height = y2 - y1
+                            bbox = [bbox_x_min, bbox_y_min, bbox_width, bbox_height]
+                            area = bbox_width * bbox_height
+                            seg = [[x1,y1 , x2,y1 , x2,y2 , x1,y2]]
+
                             annot['annotations'].append({
                                   'image_id': img_id,
                                   'id': box_id,
-                                  'category_id': ,
+                                  'category_id': box.cat_id,
                                   'bbox': bbox,
-                                  'area': ,
-                                  'segmentation': [bbox],
+                                  'area': area,
+                                  'segmentation': seg,
                                   'iscrowd': 0
                             })
                             
