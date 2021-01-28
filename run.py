@@ -95,7 +95,7 @@ def read_xml(xml_file: str):
         bb = BoundingBox(name, cat_counter, xmin, ymin, xmax, ymax)
         bndboxes.append(bb)
 
-    return bndboxes
+    return bndboxes, categories
 
 
 # performs splitting logic
@@ -146,14 +146,14 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 
             if train_mode:
                 # get list of BoundingBox objects
-                bndboxes = read_xml(os.path.join(
+                bndboxes, categories = read_xml(os.path.join(
                         input_anns_lst[dir_num], os.path.splitext(image.name)[0] + ".xml"))
 
-                # create basic json structure
+                # create basic json structure and fill categories
                 annot = {}
                 annot['images'] = []
                 annot['annotations'] = []
-                annot['categories'] = []
+                annot['categories'] = [{'id':idx, 'name':cat} for idx, cat in enumerate(categories)]
 
             row_count = -1      # row count to be included in file name
             img_id = 0          # img id in annotation
