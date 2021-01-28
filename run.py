@@ -255,6 +255,10 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
 
             bar.finish()
 
+        # print annotation
+        with open('coco_annotation.json', 'w') as outfile:
+            json.dump(annot, outfile)
+
 
 if __name__ == '__main__':
 
