@@ -177,12 +177,8 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                             os.path.splitext(image.name)[0], \
                             row_count, col_count)
 
-                    if train_mode:
-                        output_image = os.path.join(output_dir, "images/", \
-                                '{}{}'.format(entry_name, filext))
-                    else:
-                        output_image = os.path.join(output_dir, \
-                                '{}{}'.format(entry_name, filext))
+                    output_image = os.path.join(output_dir, \
+                            '{}{}'.format(entry_name, filext))
                     
                     # actual image write
                     cv2.imwrite(output_image, crop_img)
@@ -256,7 +252,7 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
             bar.finish()
 
         # print annotation
-        with open('coco_annotation.json', 'w') as outfile:
+        with open(output_dir + 'coco_annotation.json', 'w') as outfile:
             json.dump(annot, outfile)
 
 
