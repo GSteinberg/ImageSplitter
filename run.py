@@ -48,7 +48,7 @@ def parse_args():
 
 
 class BoundingBox:
-    def __init__(self, cat_name, cat_id, trunc, diff, xmin, ymin, xmax, ymax):
+    def __init__(self, cat_name, cat_id, xmin, ymin, xmax, ymax):
         self.cat_name = cat_name
         self.cat_id = cat_id
         self.xmin = xmin
@@ -100,7 +100,7 @@ def read_xml(xml_file: str):
 
 # performs splitting logic
 def split_images_and_annotations(crop_size, perc_stride, stride, filext, include_trunc, input_dirs, 
-                                 output_dir, dummy_obj, train_mode):
+                                 output_dir, train_mode):
     # if preparing for training, 2 sub-input-directories are needed
     input_imgs_lst = []
     input_anns_lst = []
@@ -219,10 +219,10 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                                 box.truncated = 1
 
                             # add new object to json
-                            bbox_x_min, x1 = max(1, box.xmin-x)
-                            bbox_y_min, y1 = max(1, box.ymin-y)
-                            bbox_x_max, x2 = min(crop_img_width, box.xmax-x)
-                            bbox_y_max, y2 = min(crop_img_height, box.ymax-y)
+                            bbox_x_min = x1 = max(1, box.xmin-x)
+                            bbox_y_min = y1 = max(1, box.ymin-y)
+                            bbox_x_max = x2 = min(crop_size, box.xmax-x)
+                            bbox_y_max = y2 = min(crop_size, box.ymax-y)
                             bbox_width = x2 - x1
                             bbox_height = y2 - y1
                             bbox = [bbox_x_min, bbox_y_min, bbox_width, bbox_height]
@@ -240,8 +240,8 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                             })
                             
                             # check for malformed boxes
-                            if max(1, box.xmin-x) >= min(crop_img_width, box.xmax-x) or \
-                                    max(1, box.ymin-y) >= min(crop_img_height, box.ymax-y):
+                            if max(1, box.xmin-x) >= min(crop_size, box.xmax-x) or \
+                                    max(1, box.ymin-y) >= min(crop_size, box.ymax-y):
                                 malformed = True
 
                             box_id+=1       # increment bndbox id
@@ -272,4 +272,4 @@ if __name__ == '__main__':
 
     split_images_and_annotations(args.crop_size, args.perc_stride, stride, args.filext, 
                                  args.include_trunc, args.input_dirs, args.output_dir,
-                                 args.dummy_obj, args.train_mode)
+                                 args.train_mode)
