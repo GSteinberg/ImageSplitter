@@ -57,20 +57,6 @@ class BoundingBox:
         self.ymax = ymax
 
 
-def bndbox_in_img(include_trunc, conditions):
-    # To include truncated objects, include all fully and partially contained
-    if include_trunc:
-        if all(conditions):
-            return True
-        if conditions.count(False) == 1:
-            return "trunc"
-    # include only fully contained
-    else:
-        if all(conditions):
-            return True
-    return False    
-
-
 # Parse XMLs to populate BoundingBox object members
 def read_xml(xml_file: str):
     tree = ET.parse(xml_file)
@@ -102,10 +88,16 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
     # if preparing for training, 2 sub-input-directories are needed
     input_imgs_lst = []
     input_anns_lst = []
+    annot = {}
     if train_mode:
         for in_dir in input_dirs:
             input_imgs_lst.append(os.path.join(in_dir, "images/"))
             input_anns_lst.append(os.path.join(in_dir, "annotations/"))
+
+            # create basic json structure and fill categories
+            annot['images'] = []
+            annot['annotations'] = []
+            annot['categories'] = []
 
     # iterate through every input img directory
     for dir_num, input_imgs in enumerate(input_imgs_lst):
@@ -147,12 +139,12 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                 bndboxes, categories = read_xml(os.path.join(
                         input_anns_lst[dir_num], os.path.splitext(image.name)[0] + ".xml"))
 
-                # create basic json structure and fill categories
-                annot = {}
-                annot['images'] = []
-                annot['annotations'] = []
-                annot['categories'] = [{'id':idx, 'name':cat} for idx, cat in enumerate(categories)]
-
+                for cat in categories:
+                    cat_id = len(annot['categories'])
+                    if not any(dic.get('name') == cat for dic in annot['categories']):
+                        annot['categories'].append({'id':cat_id, 'name':cat})
+            
+            pdb.set_trace()
             row_count = -1      # row count to be included in file name
             img_id = 0          # img id in annotation
             box_id = 0          # bndbox id in annotation
@@ -187,7 +179,6 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                         continue
 
                     # add image entry to annotation
-                    # TODO maybe make the ints into str
                     annot['images'].append({
                         'id': img_id,
                         'file_name': entry_name + filext,
@@ -205,13 +196,8 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                                       x+5 < box.xmax < x+crop_size-5, \
                                       y+5 < box.ymax < y+crop_size-5]
                         # check conditions
-                        true_or_trunc = bndbox_in_img(include_trunc, conditions)
-                        
-                        if true_or_trunc in [True,"trunc"]:
-                            # set truncated objects to difficult
-                            if true_or_trunc == "trunc":
-                                box.truncated = 1
-
+                        # to include truncated objects, include all fully and partially contained
+                        if all(conditions) or conditions.count(False) == 1:
                             # add new object to json
                             bbox_x_min = x1 = max(1, box.xmin-x)
                             bbox_y_min = y1 = max(1, box.ymin-y)
