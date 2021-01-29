@@ -144,7 +144,6 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                     if not any(dic.get('name') == cat for dic in annot['categories']):
                         annot['categories'].append({'id':cat_id, 'name':cat})
             
-            pdb.set_trace()
             row_count = -1      # row count to be included in file name
             img_id = 0          # img id in annotation
             box_id = 0          # bndbox id in annotation
