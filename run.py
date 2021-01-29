@@ -78,13 +78,11 @@ def read_xml(xml_file: str):
 
     bndboxes = []
     categories = []
-    cat_counter = 0
     for boxes in root.iter('object'):
         name = boxes.find("name").text
-        cat_id = cat_counter
         if name not in categories:
             categories.append(name)
-            cat_counter+=1
+        cat_id = categories.index(name)
 
         for box in boxes.findall("bndbox"):
             xmin = int(box.find("xmin").text)
@@ -92,7 +90,7 @@ def read_xml(xml_file: str):
             xmax = int(box.find("xmax").text)
             ymax = int(box.find("ymax").text)
         
-        bb = BoundingBox(name, cat_counter, xmin, ymin, xmax, ymax)
+        bb = BoundingBox(name, cat_id, xmin, ymin, xmax, ymax)
         bndboxes.append(bb)
 
     return bndboxes, categories
