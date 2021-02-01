@@ -99,6 +99,10 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
             annot['annotations'] = []
             annot['categories'] = []
 
+
+
+    img_id = 0          # img id in annotation
+    box_id = 0          # bndbox id in annotation
     # iterate through every input img directory
     for dir_num, input_imgs in enumerate(input_imgs_lst):
         # iterate through every image in input_dirs
@@ -145,8 +149,6 @@ def split_images_and_annotations(crop_size, perc_stride, stride, filext, include
                         annot['categories'].append({'id':cat_id, 'name':cat})
             
             row_count = -1      # row count to be included in file name
-            img_id = 0          # img id in annotation
-            box_id = 0          # bndbox id in annotation
             # split image
             for y in range(0, img_height, crop_size-stride):
                 row_count += 1
